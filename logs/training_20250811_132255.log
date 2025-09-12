@@ -1,0 +1,6 @@
+2025-08-11 13:22:55 - Connect4DQN - INFO - 🎮 Initializing Connect 4 DQN Training
+2025-08-11 13:22:55 - Connect4DQN - INFO - 📊 Model: model_name
+2025-08-11 13:22:55 - Connect4DQN - INFO - 🧠 Learning Rate: 0.0005
+2025-08-11 13:22:55 - Connect4DQN - INFO - ⏰ Discount Factor: 0.98
+2025-08-11 13:22:55 - Connect4DQN - INFO - 🎯 Initial Epsilon: 0.5
+2025-08-11 13:22:55 - Connect4DQN - INFO - 🔄 Reset Models: False

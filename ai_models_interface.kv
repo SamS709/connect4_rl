@@ -1,0 +1,374 @@
+
+#:set LIGHT_GREEN  [169 / 256, 221 / 256, 175 / 256, 1]
+#:set GREEN  [62 / 256, 182 / 256, 75 / 256, 1]
+#:set DARK_GREEN  [16 / 256, 118 / 256, 0, 1]
+#:set LIGHT_RED  [256/256,187/256,187/256,1]
+#:set RED  [237/256,79/256,79/256,1]
+#:set DARK_RED  [170/256,14/256,14/256,1]
+#:set LIGHT_BLUE  [182 / 256, 229 / 265, 246 / 256, 1]
+#:set BLUE  [112 / 256, 159 / 265, 256 / 256, 1]
+#:set DARK_BLUE  [82 / 256, 129 / 265, 256 / 256, 1]
+
+
+<ThemedProgressBar>:
+    bar_color: 0,0,0,0  # Change to your preferred fill color
+    border_color: 0,0,0,0  # Change to your preferred border color
+    background_normal: ""
+    max: self.width
+    height: 30
+    size_hint_y: None
+    canvas:
+        Color:
+            rgba: BLUE
+        RoundedRectangle:
+            size: self.size
+            pos: self.pos
+            radius: [22]
+        Color:
+            rgba: LIGHT_BLUE
+        RoundedRectangle:
+            size: (self.width * (self.value / float(self.max)), self.height)
+            pos: self.pos
+            radius: [22]
+        Color:
+            rgba: 1, 1, 1, 1
+        Line:
+            rounded_rectangle: self.x+2, self.y+2, self.width-4, self.height-4, 20, 20, 20, 20, 100
+            width: 2
+
+<EditModels>:
+    game: "Connect4"
+
+        
+
+<ChooseAIModel>:
+    game : "Connect4"
+    BoxLayoutWithActionBar:
+        orientation:'vertical'
+        canvas.before:
+            Color:
+                rgba : root.Background_color
+            Rectangle:
+                pos : self.pos
+                size : self.size
+        BoxLayout:
+            size_hint: 1, 0.15
+            InfoLabel:
+                id : title_label
+                text: "Modele personnalise"
+                font_name: "fonts/pixel.TTF"
+                color: 0,0,0,0
+                font_size : 0.05*self.width
+        BoxLayout:
+            orientation:'horizontal'
+            size_hint: 1,0.6
+            padding:0,10,0,0
+            BoxLayout:
+                id: Scroll_box
+                padding:50,0,50,0
+            BoxLayout:
+                orientation: 'vertical'
+                padding:50,0,50,0
+                BoxLayout:
+                    size_hint: 1, 0.2
+                    InfoLabel:
+                        font_size : 0.06*self.width
+                        font_name: "fonts/pixel.TTF"
+                        text: "Infos sur le modele"
+                BoxLayout:
+                    id: info_box
+                    orientation: "vertical"
+                    size_hint: 1, 0.7
+                    InfoLabel:
+                        id: info_label
+                        font_name: "fonts/robotaur.ttf"
+                        markup : True
+                        font_size : 0.035*self.width
+                        text_size: 0.9*self.size[0],0.9*self.size[1]
+                        text : ""
+                        halign:'left'
+                        valign:'top'
+        BoxLayout:
+            id : bottom_box
+            padding: self.width/3,self.height/5,self.width/3,self.height/5
+            size_hint: 1, 0.2
+            MyButton:
+                text: "valider"
+                font_name : "fonts/pixel.TTF"
+                button_color: [1,0,0,1]
+                id: validate_button
+                size_hint : 0.5, 1
+    
+    
+
+<ScrollingMenu>:
+    orientation : 'vertical'
+    canvas.before:
+        Color:
+            rgba : root.Background_color
+        Rectangle:
+            pos : self.pos
+            size : self.size
+    canvas:
+        Color:
+            rgba : root.TA_color
+        RoundedRectangle:
+            size: self.size
+            pos: self.pos
+            radius: [30]
+        
+        Color:
+            rgba : root.Line_color
+        Line:
+            rounded_rectangle : self.x+2, self.y+2, self.width-4, self.height-4, 28, 28, 28, 28, 100
+            width : 2
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba : root.TitleArea_color
+            RoundedRectangle:
+                size: self.size
+                pos : self.pos
+                radius : [(30, 30), (30, 30), (0,0), (0,0)]
+            Color:
+                rgba : root.Line_color
+            Line:
+                rounded_rectangle : self.x+2, self.y+2, self.width-4, self.height-4, 28, 28, 0, 0, 100
+                width : 2
+        size_hint : 1,0.45
+        padding : 0,0,0,0
+        Label:
+            id: left_title
+            text_size : 0.8*self.width,self.height
+            halign : 'left'
+            valign : 'middle'
+            color : 115/256,63/256,11/256,1
+            text : root.title
+            font_size : 0.07*self.width
+            font_name: "fonts/pixel.TTF"
+            markup : True
+        BoxLayout:
+            size_hint : 0.2,1
+            padding : 0,0,0,0
+            Button:
+                canvas.before:
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                        source: "images/refresh.png"
+                size_hint: None,0.5
+                width : self.height
+                pos_hint: {"center_x": 0.5, "center_y": 0.6}
+                background_color : [1,1,1,0]
+                on_press : root.press_refresh(self)
+                on_release:  root.release_refresh(self)
+
+    BoxLayout:        
+        orientation:'vertical'
+        padding:self.width/15,0,self.width/15,4
+        ScrollView:
+            size_hint:1,1
+            id: scroll
+
+<BoxLayoutWithLine>:
+    canvas.before:
+        Color:
+            rgba : root.background_color
+        Rectangle:
+            size: self.size
+            pos : self.pos
+        Color:
+            rgba: root.line_button_color
+        Line:
+            points: self.x+self.width/5,self.y,self.width*4/5,self.y
+
+<InfoBoxLayout>:
+    spacing : 5
+    padding : [10,10,10,10]
+    orientation: "vertical"
+    canvas.before:
+        Color:
+            rgba: root.background_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+        Color:
+            rgba: root.line_button_color
+        Line:
+            width : root.line_width
+            rectangle : self.x+root.line_width, self.y+root.line_width, self.width-2*root.line_width, self.height-2*root.line_width
+
+
+
+<ScrollableLabelTrain>:
+    InfoLabel:
+        markup : True
+        color: root.color
+        text: root.text
+        font_size: 0.02*self.width
+        text_size: self.width, None
+        size_hint_y: None
+        height: self.height
+
+
+<ScrollableLabel>:
+    Label:
+        markup : True
+        color: root.color
+        text: root.text
+        font_size: root.font_size1
+        text_size: self.width, None
+        size_hint_y: None
+        height: self.texture_size[1]
+
+<MyButton>:
+    button_color : root.button_color
+    font_size: self.width * 0.08
+    background_color: 0, 0, 0, 0
+    background_normal: ""
+    font_name: "fonts/pixel.TTF"
+    canvas.before:
+        Color:
+            rgba: self.button_color
+        RoundedRectangle:
+            size: self.size
+            pos: self.pos
+            radius: [22]  #---- This rounds the corners --- #
+        Color:
+            rgba: root.line_button_color
+        Line:
+            rounded_rectangle : self.x+2, self.y, self.width-4, self.height-2, 20, 20, 20, 20, 100
+            width : root.line_width
+
+<MenuInput>:
+    orientation: "vertical"
+    text1 : "Nom du modele"
+    text2 : "Nombre de couches de neurones"
+    text3 : "Nombre de neurones par couche"
+    green_text : "Creer"
+    titre : "Créé ton modele"
+    filter1 : None
+    filter2 : 'int'
+    BoxLayout:
+        size_hint : 1,0.3
+        padding: 0,0,0,0.1*self.height
+        InfoLabel:
+            text : root.titre
+    GridLayout:
+        spacing: 0.01*self.height
+        cols: 1
+        rows: 3
+        InfoInput:
+            filter : root.filter1
+            button_set_color : root.button_set_color0
+            press : root.set_on_press0
+            release : root.set_on_release0
+            text_input : root.text_input0
+            text: root.text1
+        InfoInput:
+            filter : root.filter2
+            button_set_color : root.button_set_color1
+            press : root.set_on_press1
+            release : root.set_on_release1
+            text_input : root.text_input1
+            text : root.text2
+        InfoInput:
+            filter : root.filter2
+            button_set_color : root.button_set_color2
+            press : root.set_on_press2
+            release : root.set_on_release2
+            text_input : root.text_input2
+            text : root.text3
+    BoxLayout:
+        spacing : 0.03*self.width
+        padding: 0,.1*self.height,0,0
+        size_hint : 1,0.2
+        orientation: "horizontal"
+        MyButton:
+            text: "Annuler"
+            button_color: root.cancel_color
+            on_press: root.on_press_cancel(self)
+            on_release: root.on_release_cancel(self)
+        MyButton:
+            text: root.green_text
+            on_press: root.on_press_validate(self)
+            on_release: root.on_release_validate(self)
+            button_color: root.validate_color
+
+        
+
+<InfoLabel>:
+    font_name : "fonts/pixel.TTF"
+    canvas.before:
+        Color:
+            rgba: root.background_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+        Color:
+            rgba: root.line_button_color
+        Line:
+            width : root.line_width
+            rectangle : self.x+root.line_width, self.y+root.line_width, self.width-2*root.line_width, self.height-2*root.line_width
+
+<InfoLabelTrain>:
+    markup : True
+    color: root.color
+    text: root.text
+    font_size: 0.02*self.width
+    text_size: self.width, None
+    size_hint_y: None
+    height: self.texture_size[1]
+
+<IBeamTextInput>:   
+        
+<InfoInput>:
+    text : "coucou"
+    orientation: 'vertical'
+    spacing : 0.0*self.height
+    text_input: ""
+    filter : None
+    BoxLayout:
+        InfoLabel:
+            line_width : 1.2 
+            font_size : 0.04* self.width
+            font_name : "fonts/pixel.TTF"
+            text_size : 0.9*self.size[0], 0.9*self.size[1]
+            valign: "middle"
+            halign: "left"
+            text : root.text
+    BoxLayout:
+        spacing : 0.015*self.width
+        orientation: 'horizontal'
+        IBeamTextInput:
+            input_filter : root.filter
+            text : root.text_input
+            font_size : 0.5*self.height
+            font_name : "fonts/pixel.TTF"
+        Button:
+            canvas.before:
+                
+                Color:
+                    rgba: root.button_set_color
+                Ellipse:
+                    size: 0.9*self.size[0], 0.9*self.size[1]
+                    pos: self.pos[0] + 0.05*self.size[0], self.pos[1] + 0.05*self.size[1]
+                Color:
+                    rgba : 1,1,1,1
+                Line:
+                    ellipse: (self.pos[0] + 0.05*self.size[0], self.pos[1] + 0.05*self.size[1], 0.9*self.size[0], 0.9*self.size[1], 0, 360)
+                    width: 1.2
+                Color:
+                    rgba: 1,1,1,1
+                Rectangle:
+                    size: min(self.size[0], self.size[1]) * 0.9, min(self.size[0], self.size[1]) * 0.9
+                    pos: self.x + (self.width - min(self.size[0], self.size[1]) * 0.9) / 2, self.y + (self.height - min(self.size[0], self.size[1]) * 0.9) / 2
+                    source: "images/validate.png"
+            size_hint: 0.2,1
+            background_color : [0,0,0,0]
+            on_press : root.press()
+            on_release : root.release()
+            
+
+
+<ScrollableBoxes>:
