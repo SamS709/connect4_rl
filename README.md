@@ -1,14 +1,20 @@
-# Connect 4 Deep Q-Network 🎮🧠
+# Connect 4 RL Solving 🎮🧠
 
-The goal of the repo is to make RL agents play connect 4. The goal is to see which one is the most performant. This is an extension to my Roboticc arm pplaying connect4 project, that explores more deeply the different algorithms that can solve the task. 
+The goal of the repo is to try different RL algorithms to play connect4 (model free). This is an extension to my Roboticc arm pplaying connect4 project, that explores more deeply the different algorithms that can solve the task. 
 
-You can train your own models with customed parameters for each RL algorithm directly in the UI. The purpose of this is to offer an easy way for people to explore RL algorithms, and add their own, following the same structure as DQN example. The training UI facilitates the training with allowing you to choose your parameters, and the Connect4 UI allows you to test your model.
+You can train your own models with customed parameters for each RL algorithm directly in the UI. The purpose of this is to offer an easy way for people to explore RL algorithms, and add their own, following the same structure as DQN example. 
 
-## 🌟 Features
+This project is in developpement. For the moment, the algorithms avaible are:
+- Double DQN
 
-- **Deep Q-Network Implementation**: Custom neural network architecture with batch normalization and dropout
-- **One-Hot Encoding**: Proper board state representation for optimal learning
-- **Self-Play Training**: AI agents train by playing against each other
+
+## 🌟 Core components
+
+- **/scripts/Env.py**: The Connect4 environnement
+- **/scripts/Train.py**: Training scripts for algorithms
+- **/scripts/Connect4.py**: The basic rules for the connect4 (useful for the env)
+- **/scripts/rl_algorithms**: The folder containing the avaible algorithms (in which you can create yours).
+- **/graphics**: The folder containing the graphics part
 - **Experience Replay**: Efficient learning through stored game experiences
 - **Epsilon-Greedy Strategy**: Balanced exploration vs exploitation
 - **Model Persistence**: Save and load trained models

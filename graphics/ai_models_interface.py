@@ -3,8 +3,9 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Get project root directory for font paths
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT_PATH_PIXEL = os.path.join(PROJECT_ROOT, 'fonts', 'pixel.TTF')
+FONT_PATH_PIXEL = os.path.join(os.getcwd(),'graphics','fonts', 'pixel.TTF')
 from scripts.DQN import DQN
 from scripts.Train import Train
 from graphics.navigation_screen_manager import NavigationScreenManager
@@ -776,10 +777,10 @@ class ai_models_interfaceApp(App):
         return super(ai_models_interfaceApp, self).get_application_config()
     
     def get_kv_path(self):
-        return os.path.join(os.path.dirname(__file__), 'ai_models_interface.kv')
+        return os.path.join(os.getcwd(), 'graphics', 'ai_models_interface.kv')
     
     def load_kv(self, filename=None):
-        return Builder.load_file(os.path.join(os.path.dirname(__file__), 'ai_models_interface.kv'))
+        return Builder.load_file(os.path.join(os.getcwd(), 'graphics', 'ai_models_interface.kv'))
     
     def build(self):
         self.width = Window.width

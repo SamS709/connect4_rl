@@ -1,6 +1,5 @@
 
-#:import navigation_screen_manager navigation_screen_manager
-#:import BoxLayoutWithActionBar graphics.box_layout_with_action_bar.BoxLayoutWithActionBar
+#:import navigation_screen_manager graphics.navigation_screen_manager
 #:import Game graphics.connect4InterfaceNoRobot.Game
 
 #:set LIGHT_GREEN  [169 / 256, 221 / 256, 175 / 256, 1]
@@ -47,7 +46,7 @@
 
 <ChooseAIModel>:
     game : "Connect4"
-    BoxLayoutWithActionBar:
+    BoxLayout:
         orientation:'vertical'
         canvas.before:
             Color:
@@ -60,7 +59,7 @@
             InfoLabel:
                 id : title_label
                 text: "Models menu"
-                font_name: "fonts/pixel.TTF"
+                font_name: "graphics/fonts/pixel.TTF"
                 color: 0,0,0,0
                 font_size : 0.05*self.width
         BoxLayout:
@@ -77,7 +76,7 @@
                     size_hint: 1, 0.2
                     InfoLabel:
                         font_size : 0.06*self.width
-                        font_name: "fonts/pixel.TTF"
+                        font_name: "graphics/fonts/pixel.TTF"
                         text: "About the model"
                 BoxLayout:
                     id: info_box
@@ -85,7 +84,7 @@
                     size_hint: 1, 0.7
                     InfoLabel:
                         id: info_label
-                        font_name: "fonts/robotaur.ttf"
+                        font_name: "graphics/fonts/robotaur.ttf"
                         markup : True
                         font_size : 0.035*self.width
                         text_size: 0.9*self.size[0],0.9*self.size[1]
@@ -98,7 +97,7 @@
             size_hint: 1, 0.2
             MyButton:
                 text: "valider"
-                font_name : "fonts/pixel.TTF"
+                font_name : "graphics/fonts/pixel.TTF"
                 button_color: [1,0,0,1]
                 id: validate_button
                 size_hint : 0.5, 1
@@ -149,7 +148,7 @@
             color : 115/256,63/256,11/256,1
             text : root.title
             font_size : 0.07*self.width
-            font_name: "fonts/pixel.TTF"
+            font_name: "graphics/fonts/pixel.TTF"
             markup : True
         BoxLayout:
             size_hint : 0.2,1
@@ -159,7 +158,7 @@
                     Rectangle:
                         pos: self.pos
                         size: self.size
-                        source: "images/refresh.png"
+                        source: "graphics/images/refresh.png"
                 size_hint: None,0.5
                 width : self.height
                 pos_hint: {"center_x": 0.5, "center_y": 0.6}
@@ -230,7 +229,7 @@
     font_size: self.width * 0.08
     background_color: 0, 0, 0, 0
     background_normal: ""
-    font_name: "fonts/pixel.TTF"
+    font_name: "graphics/fonts/pixel.TTF"
     canvas.before:
         Color:
             rgba: self.button_color
@@ -302,7 +301,7 @@
         
 
 <InfoLabel>:
-    font_name : "fonts/pixel.TTF"
+    font_name : "graphics/fonts/pixel.TTF"
     canvas.before:
         Color:
             rgba: root.background_color
@@ -336,7 +335,7 @@
         InfoLabel:
             line_width : 1.2 
             font_size : 0.04* self.width
-            font_name : "fonts/pixel.TTF"
+            font_name : "graphics/fonts/pixel.TTF"
             text_size : 0.9*self.size[0], 0.9*self.size[1]
             valign: "middle"
             halign: "left"
@@ -348,7 +347,7 @@
             input_filter : root.filter
             text : root.text_input
             font_size : 0.5*self.height
-            font_name : "fonts/pixel.TTF"
+            font_name : "graphics/fonts/pixel.TTF"
         Button:
             canvas.before:
                 
@@ -367,7 +366,7 @@
                 Rectangle:
                     size: min(self.size[0], self.size[1]) * 0.9, min(self.size[0], self.size[1]) * 0.9
                     pos: self.x + (self.width - min(self.size[0], self.size[1]) * 0.9) / 2, self.y + (self.height - min(self.size[0], self.size[1]) * 0.9) / 2
-                    source: "images/validate.png"
+                    source: "graphics/images/validate.png"
             size_hint: 0.2,1
             background_color : [0,0,0,0]
             on_press : root.press()
