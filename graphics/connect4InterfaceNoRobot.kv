@@ -1,3 +1,5 @@
+#:import BoxLayoutWithActionBar graphics.box_layout_with_action_bar.BoxLayoutWithActionBar
+
 #:set LIGHT_GREEN  [169 / 256, 221 / 256, 175 / 256, 1]
 #:set GREEN  [62 / 256, 182 / 256, 75 / 256, 1]
 #:set DARK_GREEN  [16 / 256, 118 / 256, 0, 1]
@@ -15,3 +17,12 @@
     size_hint : 1,1 #taille de la grille
 
 <Connect4GameNoRobot>:
+
+
+<Game>:
+    BoxLayoutWithActionBar:
+        id: action_bar
+        title: "Connect 4 Game"
+        orientation: 'vertical'
+        Connect4GameNoRobot:
+            id: game_game

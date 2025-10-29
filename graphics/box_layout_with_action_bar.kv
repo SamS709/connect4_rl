@@ -16,9 +16,18 @@
                 width:2
         ActionView:
             ActionPrevious:
-                title: root.title #c'est le titre donné au BoxLayoutWithActionBar
+                
+                font_name: "fonts/pixel.TTF"
                 #on_release: root.parent.parent.pop()     # on remonte dans les parents : BoxLayoutWithActionBar->Screen->ScreenManager
                 on_release: app.manager.pop()
                 app_icon : "images/lab_logo.png"
                 app_icon_height : "35dp"
                 app_icon_width : "35dp"
+            ActionLabel:
+                text: root.title
+                font_name: "fonts/pixel.TTF"
+                color: 1,1,1,1
+                size_hint_x: None
+                halign: "left"
+                valign: "middle"    
+                width: self.texture_size[0] + dp(20)

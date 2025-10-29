@@ -16,11 +16,14 @@ from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
+from kivy.uix.screenmanager import Screen
+
 import random as rd
 from kivy.lang import Builder
 import numpy as np
 import sys
 import os
+Builder.load_file(os.path.join(os.path.dirname(__file__), 'connect4InterfaceNoRobot.kv'))
 
 # Add parent directory and scripts directory to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,8 +60,9 @@ class Grille(BoxLayout):
                 for j in range(7):
                     self.LC[i].append(Ellipse(pos=(100,100),size=(50,50)))
         
+    
 
-class Connect4GameNoRobot(FloatLayout,Connect4): # Main class for Connect4 game without robot
+class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect4 game without robot
 
     def __init__(self, P1='1P', **kwargs):
         super().__init__(**kwargs)
@@ -67,6 +71,12 @@ class Connect4GameNoRobot(FloatLayout,Connect4): # Main class for Connect4 game 
         self.model_name = "model_128_neurons_3_layers"
         self.P1 = P1 # game mode choice (made from Mode: takes the value given to Mode)
         self.reset() # initialize the game
+        
+
+        
+        # This runs before any transition animation
+        # Good for: Setting up data, initializing widgets
+    
 
     def on_press_reset(self, instance):
         instance.button_color = DARK_BLUE
@@ -250,7 +260,16 @@ class Connect4GameNoRobot(FloatLayout,Connect4): # Main class for Connect4 game 
         self.pionJ.pos = pos[0] - self.pionJ.size[0] / 2, self.height - self.pionJ.size[1]
 
 
-
+class Game(Screen):
+    
+    def on_pre_enter(self, *args):
+        global MODEL_NAME
+        self.action_bar = self.ids.action_bar
+        self.game = self.ids.game_game
+        self.action_bar.title = "Playing against : " + var1.model_name
+        self.model_name = var1.model_name
+        print("coucou")
+        self.game.reset()
 
 class graphicsApp(App):
     title = "Connect 4 DQN"

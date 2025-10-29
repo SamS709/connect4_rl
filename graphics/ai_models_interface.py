@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Get project root directory for font paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH_PIXEL = os.path.join(PROJECT_ROOT, 'fonts', 'pixel.TTF')
+from scripts.DQN import DQN
 from scripts.Train import Train
 from graphics.navigation_screen_manager import NavigationScreenManager
 from global_vars import *
@@ -201,12 +202,16 @@ class ChooseAIModel(BoxLayout): # Menu to choose the model to play against
         self.scroll.clear_widgets()
         self.scroll_box.clear_widgets()
         self.model_list = self.getInfo.get_model_names()
+        print("MODEL LIST:", self.model_list)
         self.L_buttons = []
+        already_added = []
         for i in range(len(self.model_list)):
-            btn = MyButton(text=str(self.model_list[i][:-4]), size_hint_y=None, height=40, on_press = self.on_press, on_release = self.on_release)
-            if i % 2 == 0:
+            model_name = self.model_list[i][:-4]
+            if model_name not in already_added:
+                btn = MyButton(text=str(model_name), size_hint_y=None, height=40, on_press = self.on_press, on_release = self.on_release)
                 self.L_buttons.append(btn)
                 self.layout.add_widget(btn)
+                already_added.append(model_name)
         self.scroll.add_widget(self.layout)
         self.scroll_box.add_widget(self.scroll_menu)
 
@@ -296,21 +301,24 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
             n_neurons_tot = n_layers*n_neurons_per_layer
             print(f"Model name: {self.model_name}, Number of layers: {n_layers}, Neurons per layer: {n_neurons_per_layer}, Total neurons: {n_neurons_tot}")
             self.log_label.text = ""
+            if len(self.model_name)>=10:
+                self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
+                self.log_label.text+="\n[ERROR] The model could not be created.\nPlease provide a valid name for your model.\nNo more than 10 characters."
             if self.model_name == "":
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text+="\n[ERREUR] Le modele n'a pas pu etre créé \nDonne un nom valide à ton modele"
+                self.log_label.text+="\n[ERROR] The model could not be created.\nPlease provide a valid name for your model."
             if n_neurons_per_layer == 0:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text+="\n[ERREUR] Le modele n'a pas pu etre créé \nLe modele ne peut pas avoir 0 neurone !"
+                self.log_label.text+="\n[ERROR] The model could not be created.\nThe model cannot have 0 neurons!"
             if n_layers == 0:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text+="\n[ERREUR] Le modele n'a pas pu etre créé \nLe modele ne peut pas avoir 0 couche de neurones !"
+                self.log_label.text+="\n[ERROR] The model could not be created.\nThe model cannot have 0 layers!"
             if n_neurons_per_layer > 512:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text+="\n[ERREUR] Le modele n'a pas pu etre créé \nLe modele ne peut pas avoir plus de 512 neurones par couche !"
+                self.log_label.text+="\n[ERROR] The model could not be created.\nThe model cannot have more than 512 neurons per layer!"
             if n_layers > 10:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text+="\n[ERREUR] Le modele n'a pas pu etre créé \nLe modele ne peut pas avoir plus de 10 couches !"
+                self.log_label.text+="\n[ERROR] The model could not be created.\nThe model cannot have more than 10 layers!"
             else:
                 t1 = threading.Thread(target=self.create_model, args=(n_layers, n_neurons_per_layer))
                 t1.start()
@@ -319,21 +327,25 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
             self.info_input.children[1].children[0].children[0].children[1].text = ""
 
     def create_model(self,n_layers, n_neurons_per_layer):
+        
+        def model_already_exists():
+            self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
+            self.log_label.text = "\n[ERROR] The model could not be created.\nThis name is already taken!"
+            
         self.model_list = self.getInfo.get_model_names()
         print(self.model_list)
         for model in self.model_list:
-            if self.model_name.upper() == model[:-1].upper():
-                self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text = "\n[ERREUR] Le modele n'a pas pu etre créé \nCe nom est deja pris !"
+            if self.model_name.upper() == model[:-4].upper():
+                model_already_exists()
         if self.log_label.text == "":
             self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
             try:
                 DQN(reset=False,model_name=self.model_name,n_neurons=n_neurons_per_layer,n_layers=n_layers,softmax_=False,P1="1")
                 DQN(reset=False,model_name=self.model_name,n_neurons=n_neurons_per_layer,n_layers=n_layers,softmax_=False,P1="2")
-                self.log_label.text = f"\n[color=3EB64B][INFO] Le modele {self.model_name} a été créé avec succès.[/color]"
+                self.log_label.text = f"\n[color=3EB64B][INFO] The model {self.model_name} was created successfully.[/color]"
             except:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                self.log_label.text = "\n[ERREUR] Le modele n'a pas pu etre créé \nErreur inconnue !"
+                self.log_label.text = "\n[ERROR] The model could not be created.\nUnknown error!"
             self.load_button_list()
 
     def on_release_cancel_new(self):
@@ -374,10 +386,10 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
     def log_error(self,i):
         if i == 1:
             self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-            self.log_label.text+"\n[ERREUR] Impossible de supprimer le modele "+str(self.model_name) + self.log_label.text
+            self.log_label.text+="\n[ERROR] Unable to delete the model "+str(self.model_name) + self.log_label.text
         if i == 2:
             self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-            self.log_label.text="\n[ERREUR] Impossible de supprimer les modeles presents par defaut" + self.log_label.text
+            self.log_label.text="\n[ERROR] Unable to delete the default models" + self.log_label.text
 
 
     def on_press(self, instance):
@@ -387,7 +399,7 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
         instance.button_color = DARK_BLUE
         self.model_name = instance.text
         MODEL_NAME = instance.text
-        print(MODEL_NAME)
+        var1.model_name = instance.text
         self.train.button_color = BLUE
         self.play.button_color = PURPLE
         self.delete.button_color = RED
@@ -399,6 +411,7 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
     def play_on_release(self,instance):
         if instance.button_color == DARK_PURPLE:
             instance.button_color = PURPLE
+            App.get_running_app().manager.push("Game")
             
     
     def train_on_press(self,instance):
@@ -409,7 +422,7 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
         if instance.button_color == DARK_BLUE:
             instance.button_color = BLUE
             self.scroll_box.clear_widgets()
-            self.info_label.text = f"Nombre d'epoques: \n\n\nTaux d'apprentissage: \n\n\nFacteur de reduction:"
+            self.info_label.text = f"Number of epochs: \n\n\nLearning rate: \n\n\nReduction factor:"
             #self.scroll_box.padding = [0,0,0,0]
             self.scroll_box.add_widget(self.menu_train)
         
@@ -426,13 +439,13 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
                 self.log_error(2)
             else:
                 try:
-                    shutil.rmtree(path+"1")
+                    os.remove(path+"1.h5")
                     self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
-                    self.log_label.text = f"\n[color=3EB64B][INFO] Le modèle {self.model_name} a été supprimé avec succès.[/color]"
+                    self.log_label.text = f"\n[color=3EB64B][INFO] The model {self.model_name} was deleted successfully.[/color]"
                 except:
                     self.log_error(1)
                 try:
-                    shutil.rmtree(path+"2")
+                    os.remove(path + "2.h5")
                 except:
                     pass
                 self.load_button_list()
@@ -445,7 +458,7 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
         if instance.button_color == DARK_GREEN:
             instance.button_color = GREEN
             self.scroll_box.clear_widgets()
-            self.info_label.text = f"Name of the model: \n\n\nNomber of layers: \n\n\nNomber of neurons per layer:"
+            self.info_label.text = f"Name of the model: \n\n\nNumber of layers: \n\n\nNumber of neurons per layer:"
             #self.scroll_box.padding = [0,0,0,0]
             self.scroll_box.add_widget(self.info_input)
 
