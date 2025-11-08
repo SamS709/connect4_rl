@@ -1,5 +1,9 @@
 import os
+import sys
 import logging
+
+# Add project root to path to enable proper imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Force TensorFlow to use CPU (RTX 5070 Ti compute capability 12.0 not yet fully supported)
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
@@ -7,16 +11,19 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
 
 # Simple one-line logging setup
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
+import importlib
 
 from kivy.clock import mainthread
-from scripts.DQN import DQN
+from scripts.rl_algorithms.DDQN import DDQN
 import numpy as np
 from scripts.Connect4 import Connect4
 from scripts.env import Env
+from scripts.logger import Logger
 import tensorflow as tf
 from scripts.epsilon import epsilon
 from scripts.MinMax import MinMax
 import multiprocessing
+import matplotlib.pyplot as plt
 
 
 N_LEARNING = 0
@@ -25,8 +32,8 @@ class Train(Connect4):
 
     def __init__(self,model_name,info_label = None,scrollable_lablel = None,box = None,pb = None,reset=False,learning_rate=0.5e-3,discount_factor=0.99,softmax_=False,eps = 0.5):
         super().__init__()
-        self.dqnP1 = DQN(reset = reset, eps = eps, P1='1',learning_rate=learning_rate,gamma=discount_factor,model_name=model_name,softmax_=softmax_,n_neurons=128,n_layers=3)
-        self.dqnP2 = DQN(reset = reset, eps = eps, P1='2',learning_rate=learning_rate,gamma=discount_factor,model_name=model_name,softmax_=softmax_,n_neurons=128,n_layers=3)
+        self.load_models(reset, eps, learning_rate, discount_factor,model_name, softmax_)
+        self.log_algo_name()    
         self.env = Env()
         self.model_name = model_name
         # self.minimax = MinMax()
@@ -36,8 +43,26 @@ class Train(Connect4):
         self.scrollable_lablel = scrollable_lablel
         self.box = box
         self.pb = pb
+
         if self.info_label == None:
             self.kivy = False
+        
+        
+    def load_models(self, reset, eps, learning_rate, discount_factor,model_name, softmax_):
+        self.logger_ = Logger(model_name, "1")
+        model_algo = self.logger_.get_model_algo()
+        module = importlib.import_module(f"scripts.rl_algorithms.{model_algo}")
+        AlgorithmClass = getattr(module, model_algo)
+        self.agentP1 = AlgorithmClass(reset = reset, use_prioritized= True, eps = eps, P1='1',learning_rate=learning_rate,gamma=discount_factor,model_name=model_name,softmax_=softmax_,n_neurons=128,n_layers=3)
+        self.agentP2 = AlgorithmClass(reset = reset, use_prioritized= True, eps = eps, P1='2',learning_rate=learning_rate,gamma=discount_factor,model_name=model_name,softmax_=softmax_,n_neurons=128,n_layers=3)
+        self.logger1 = self.agentP1.logger
+        self.logger2 = self.agentP2.logger 
+        
+    def log_algo_name(self):
+        algo_name = "unknown"
+        algo_name = self.agentP1.get_algo_name()
+        self.logger1.set_algo_name(algo_name)
+        self.logger2.set_algo_name(algo_name)
         
     @mainthread
     def modif_label(self,i,N=1):
@@ -62,71 +87,63 @@ class Train(Connect4):
 
             game_length += 1
 
-            a1 = self.dqnP1.epsilon_greedy(A,eps)
+            a1 = self.agentP1.select_action(A,eps)
             B, r1, t1 = self.env.step(a1,1)
-            
+                        
             if t1: # if t1 made a move that led to a termination
                 t2 = True 
                 C = A
-                if r1 == 1: # if P1 won
-                    r2 = 0
-                elif r1 == 0: # if P1 made a forbidden move
-                    r2 = 1/7
-                elif r1 == 1/7: # if it is a tie
-                    r2 = 1/7
-
+                if r1 == 10: # if P1 won
+                    r2 = -10
+                    
             if not first_shot: # replay_beuffer2 starts to append after the first loop
-                self.dqnP2.replay_buffer.append((D,a2,r2-r1,B,(1-t1)*(1-t2)))
+                self.agentP2.replay_buffer.append((D,a2,r2,B,(1-t1)))
 
             if not t1: 
-                a2 = self.dqnP2.epsilon_greedy(B,eps)
+                a2 = self.agentP2.select_action(B,eps)
                 C, r2, t2 = self.env.step(a2,2)
-                if t2:
-                    self.dqnP2.replay_buffer.append((B,a2,r2,B,1-t2)) # accroding to (E0), as t2 = True, the value of the next_state is not important
+                if t2: # if p2 finished the game (wins or tie or forbidden move)
+                    self.agentP2.replay_buffer.append((B,a2,r2,B,1-t2)) # accroding to (E0), as t2 = True, the value of the next_state is not important
             
-            if t2 and not t1 and r2==0: # if p2 made a forbidden move
-                r1 = 1/7 # because we can't tell if the move made by P1 was good or not: we set the target proba for that move to 1/7 (uniform)
-            self.dqnP1.replay_buffer.append((A,a1,r1-r2,C,(1-t1)*(1-t2)))                
+            if t2 and not t1: 
+                if r2 == 10: # if p2 won
+                    r1 = -10
+            self.agentP1.replay_buffer.append((A,a1,r1,C,(1-t1)*(1-t2)))                
             first_shot = False
 
             A = C
             D = B
-
-        # for info in self.dqnP1.replay_buffer:
-        #     L_info = list(info)
-        #     print(
-        #         f"state = \n{self.grid_to_table(L_info[0])}\n action = {L_info[1]}\n reward = {L_info[2]}\n next_state = \n{self.grid_to_table(L_info[3])}\n runs = {L_info[4]}\n\n"
-        #     )
-        # for info in self.dqnP2.replay_buffer:
-        #     L_info = list(info)
-        #     print(
-        #         f"state = \n{self.grid_to_table(L_info[0])}\n action = {L_info[1]}\n reward = {L_info[2]}\n next_state = \n{self.grid_to_table(L_info[3])}\n runs = {L_info[4]}\n\n"
-        #     )
-
+        
         return game_length
 
 
     def train_n_games(self,n):
+        starting_epoch = self.logger1.get_current_infos()[0]
         self.N = n
         game_lengths = []
         game_lengths_mean = []
         n_points = 50
+        n_evals = 10
         registration_rate = n/n_points # such that we get n_points points for the final game_length plot
+        evals_rate = n/n_evals
         for episode in range(n):
             self.modif_label(episode,N=1) if self.kivy else None
             eps = epsilon(episode,n,2,eps_0=0.3)
             game_length = self.play_one_game(eps)
             game_lengths.append(game_length)
-            print(f"\r[INFO] Episode: {episode + 1} / {n}, Game length: {game_length + 1}, eps: {eps:.3f}",end="")
+            print(f"\r[INFO] Episode: {starting_epoch + episode + 1} / {n + starting_epoch}, Game length: {game_length + 1}, eps: {eps:.3f}",end="")
             if episode >= 10 :
-                self.dqnP1.training_step()
-                self.dqnP2.training_step()
+                self.agentP1.training_step()
+                self.agentP2.training_step()
                 if episode % registration_rate == 0:
+                    self.agentP1.save()
+                    self.agentP2.save()
                     game_lengths_mean.append(np.mean(game_lengths[int(episode-registration_rate):]))
-                    self.dqnP1.target.set_weights(self.dqnP1.model.get_weights())
-                    self.dqnP2.target.set_weights(self.dqnP2.model.get_weights())
-                    self.dqnP1.model.save(self.dqnP1.dir_path,overwrite=True)
-                    self.dqnP2.model.save(self.dqnP2.dir_path,overwrite=True)
+                    self.logger1.overwrite_epochs(starting_epoch + episode)
+                    self.logger2.overwrite_epochs(starting_epoch + episode)
+                if episode % evals_rate == 0:
+                    self.add_evals_infos(10, 3)
+                    
         self.modif_label(i=n,N=2)
         return game_lengths_mean
     
@@ -141,13 +158,13 @@ class Train(Connect4):
             minimax = MinMax(player=2)
             while not terminated:
                 game_length += 1
-                action = self.dqnP1.epsilon_greedy(state,eps = 0) # best pos according to the DQN
+                action = self.agentP1.select_action(state,eps = 0) # best pos according to the DQN
                 state, reward_ai, terminated = self.env.step(action,1)
                 
                 if terminated:
-                    if reward_ai == 0:
+                    if reward_ai == -15:
                         forbiden_move = 1
-                    elif reward_ai == 1:
+                    elif reward_ai == 10:
                         win = 1
                     else:
                         tie = 1
@@ -162,13 +179,13 @@ class Train(Connect4):
             minimax = MinMax(player=1)
             while not terminated:
                 game_length += 1
-                action = self.dqnP2.epsilon_greedy(state,eps = 0) # best pos according to the DQN
+                action = self.agentP2.select_action(state,eps = 0) # best pos according to the DQN
                 state, reward_ai, terminated = self.env.step(action,2)
 
                 if terminated:
-                    if reward_ai == 0:
+                    if reward_ai == -15:
                         forbiden_move = 1
-                    elif reward_ai == 1:
+                    elif reward_ai == 10:
                         win = 1
                     else:
                         tie = 1
@@ -186,7 +203,7 @@ class Train(Connect4):
 
 
     
-    def evaluate_model(self,n_games = 100,depth = 3):
+    def evaluate_model(self,n_games = 10,depth = 3):
         game_lengths = [[],[]]
         wins = [[],[]]
         ties = [[],[]]
@@ -223,26 +240,125 @@ class Train(Connect4):
 
         print(str_)
         
+        win_rate1, forbidden_rate1, lose_rate1 = total_wins_1/n_games, total_forbiden_moves_1/n_games, (n_games - (total_wins_1 + total_forbiden_moves_1)) / n_games
+        win_rate2, forbidden_rate2, lose_rate2 = total_wins_2/n_games, total_forbiden_moves_2/n_games, (n_games - (total_wins_2 + total_forbiden_moves_2)) / n_games
+        
+        return win_rate1, forbidden_rate1, lose_rate1, win_rate2, forbidden_rate2, lose_rate2 
+
+    def add_evals_infos(self,n_games, depth):
+        
+        win_rates1 = []
+        forbidden_rates1 = []
+        lose_rates1 = []
+        
+        win_rates2 = []
+        forbidden_rates2 = []
+        lose_rates2 = []
+        
+        for d in range(depth):
+            win_rate1, forbidden_rate1, lose_rate1, win_rate2, forbidden_rate2, lose_rate2 = self.evaluate_model(n_games, d)
+            win_rates1.append(win_rate1)
+            forbidden_rates1.append(forbidden_rate1)
+            lose_rates1.append(lose_rate1)
+            win_rates2.append(win_rate2)
+            forbidden_rates2.append(forbidden_rate2)
+            lose_rates2.append(lose_rate2)
+            
+        self.logger1.add_new_evaluation(n_games, win_rates1, forbidden_rates1, lose_rates1)
+        self.logger2.add_new_evaluation(n_games, win_rates2, forbidden_rates2, lose_rates2)
+
+        
+        
+            
+
+    def plot_current_perfs(self):
+        total_epochs1, evaluation_epochs1, win_rates1, forbidden_rates1, lose_rates1 = self.logger1.get_current_infos()
+        total_epochs2, evaluation_epochs2, win_rates2, forbidden_rates2, lose_rates2 = self.logger2.get_current_infos()
+        
+        # Check if we have data
+        if len(win_rates1) == 0 or len(win_rates1[0]) == 0:
+            print("[WARNING] No evaluation data available for plotting")
+            return
+        
+        # Get number of depths
+        n_depths = len(win_rates1[0])
+        
+        # Create one figure for Model 1 with subplots for each depth
+        fig1, axes1 = plt.subplots(1, n_depths, figsize=(7 * n_depths, 6))
+        if n_depths == 1:
+            axes1 = [axes1]  # Make it iterable if only one subplot
+        
+        fig1.suptitle(f'{self.model_name}1 - Performance vs Minimax', fontsize=16)
+        
+        for depth_idx in range(n_depths):
+            win_rate_depth1 = [wr[depth_idx] for wr in win_rates1]
+            forbidden_rate_depth1 = [fr[depth_idx] for fr in forbidden_rates1]
+            lose_rate_depth1 = [lr[depth_idx] for lr in lose_rates1]
+            
+            axes1[depth_idx].set_title(f'Depth {depth_idx}')
+            axes1[depth_idx].set_xlabel('Training Epochs')
+            axes1[depth_idx].set_ylabel('Rate')
+            axes1[depth_idx].grid(True, alpha=0.3)
+            
+            axes1[depth_idx].plot(evaluation_epochs1, win_rate_depth1, marker='o', label='Win Rate', linewidth=2, color='green')
+            axes1[depth_idx].plot(evaluation_epochs1, forbidden_rate_depth1, marker='s', label='Forbidden Move Rate', linewidth=2, color='orange')
+            axes1[depth_idx].plot(evaluation_epochs1, lose_rate_depth1, marker='^', label='Loss Rate', linewidth=2, color='red')
+            
+            axes1[depth_idx].legend(loc='best')
+            axes1[depth_idx].set_ylim([0, 1])
+        
+        plt.tight_layout()
+        # plt.savefig(f'plots/{self.model_name}1_performance.png', dpi=300, bbox_inches='tight')
+        plt.show()
+        
+        # Create one figure for Model 2 with subplots for each depth
+        fig2, axes2 = plt.subplots(1, n_depths, figsize=(7 * n_depths, 6))
+        if n_depths == 1:
+            axes2 = [axes2]  # Make it iterable if only one subplot
+        
+        fig2.suptitle(f'{self.model_name}2 - Performance vs Minimax', fontsize=16)
+        
+        for depth_idx in range(n_depths):
+            win_rate_depth2 = [wr[depth_idx] for wr in win_rates2]
+            forbidden_rate_depth2 = [fr[depth_idx] for fr in forbidden_rates2]
+            lose_rate_depth2 = [lr[depth_idx] for lr in lose_rates2]
+            
+            axes2[depth_idx].set_title(f'Depth {depth_idx}')
+            axes2[depth_idx].set_xlabel('Training Epochs')
+            axes2[depth_idx].set_ylabel('Rate')
+            axes2[depth_idx].grid(True, alpha=0.3)
+            
+            axes2[depth_idx].plot(evaluation_epochs2, win_rate_depth2, marker='o', label='Win Rate', linewidth=2, color='green')
+            axes2[depth_idx].plot(evaluation_epochs2, forbidden_rate_depth2, marker='s', label='Forbidden Move Rate', linewidth=2, color='orange')
+            axes2[depth_idx].plot(evaluation_epochs2, lose_rate_depth2, marker='^', label='Loss Rate', linewidth=2, color='red')
+            
+            axes2[depth_idx].legend(loc='best')
+            axes2[depth_idx].set_ylim([0, 1])
+        
+        plt.tight_layout()
+        # plt.savefig(f'plots/{self.model_name}2_performance.png', dpi=300, bbox_inches='tight')
+        plt.show()
+        
 
 
 if __name__=="__main__":
+    
+    
 
     train = True
-    evaluate = True
-    trainer = Train(model_name= "model_128_neurons_3_layers")
+    plot = True
+    trainer = Train(model_name= "A2C")
 
     if train :
         import matplotlib.pyplot as plt
-        n = 10000
-        game_lengths = trainer.train_n_games(n)
-        plt.title('Lengths of the game during training')
-        plt.plot(game_lengths)
-        plt.savefig('plots/training_plot.png', dpi=300, bbox_inches='tight')
-        plt.show()
+        n = 30000
+        trainer.train_n_games(n)
+        # plt.plot(game_lengths)
+        # plt.savefig('plots/training_plot.png', dpi=300, bbox_inches='tight')
+        # plt.show()
 
-    if evaluate:
-        trainer.evaluate_model(n_games = 100, depth=3)
-
+    if plot:
+        trainer.plot_current_perfs()
 
     
 

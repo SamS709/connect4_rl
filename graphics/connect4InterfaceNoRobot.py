@@ -31,7 +31,7 @@ sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, 'scripts'))
 
 from scripts.Connect4 import Connect4
-from scripts.DQN import DQN
+from scripts.rl_algorithms.DDQN import DDQN
 from scripts.env import Env
 from graphics.ai_models_interface import MyButton
 from global_vars import *
@@ -68,7 +68,6 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
         super().__init__(**kwargs)
         Window.bind(mouse_pos=self.mouse_pos)
         self.env = Env()
-        self.model_name = "model_128_neurons_3_layers"
         self.P1 = P1 # game mode choice (made from Mode: takes the value given to Mode)
         self.reset() # initialize the game
         
@@ -86,13 +85,14 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
         self.reset()
 
     def reset(self):
+        self.model_name = var1.model_name
         self.grid = self.env.reset()
         self.terminated = False
         self.clear_widgets() # remove all widgets from the window
         self.P1 = '2' # by default, the AI plays after
         self.j = 1 # yellow pieces represented by ones
         self.r = 2 # red pieces represented by twos
-        self.dqn = DQN(model_name=self.model_name,softmax_=False,P1=str(self.r),n_neurons=128,n_layers=3) #initializing dqn
+        self.dqn = DDQN(model_name= self.model_name , softmax_=False,P1=str(self.r),n_neurons=128,n_layers=3) #initializing dqn
         self.player = 'J' # by default, the user starts (user = yellow player)
         self.grille = Grille() # instantiate a new game grid
         self.add_widget(self.grille) # Display the grid
@@ -128,7 +128,8 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
         self.add_widget(self.player_one_button) # Add the button to let the opponent start
         self.add_widget(self.reset_button)        
         self.on_size() # updateing the size of the elements
-
+        self.model_name = var1.model_name
+        print('var1 model name = ', var1.model_name)
     
     def on_press_player_one(self, instance):
         if instance.button_color == RED :
@@ -142,7 +143,7 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
             self.P1 = '1'
             self.j = 2 
             self.r = 1 
-            self.dqn = DQN(model_name=self.model_name,softmax_=False,P1=str(self.r),n_neurons=128,n_layers=3) # initializing dqn
+            print(self.model_name)
             self.play() #we play the first move of the red player
 
 
@@ -268,7 +269,6 @@ class Game(Screen):
         self.game = self.ids.game_game
         self.action_bar.title = "Playing against : " + var1.model_name
         self.model_name = var1.model_name
-        print("coucou")
         self.game.reset()
 
 class graphicsApp(App):

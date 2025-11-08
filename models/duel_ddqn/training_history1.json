@@ -1,0 +1,216 @@
+{
+  "total_epochs": 11600,
+  "algorithm": "DuelingDDQN",
+  "evaluations": [
+    {
+      "epoch": 1000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.6,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.1
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.1,
+        "forbidden_rate": 0.6,
+        "lose_rate": 0.3
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.0,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.7
+      }
+    },
+    {
+      "epoch": 2000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.8,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.1
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.3,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.6
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.2,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.7
+      }
+    },
+    {
+      "epoch": 3000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.7,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.0
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.3,
+        "forbidden_rate": 0.2,
+        "lose_rate": 0.5
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.1,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.6
+      }
+    },
+    {
+      "epoch": 4000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.9,
+        "forbidden_rate": 0.0,
+        "lose_rate": 0.1
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.3,
+        "forbidden_rate": 0.5,
+        "lose_rate": 0.2
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.2,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.5
+      }
+    },
+    {
+      "epoch": 5000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.7,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.2
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.1,
+        "forbidden_rate": 0.4,
+        "lose_rate": 0.5
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.4,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.3
+      }
+    },
+    {
+      "epoch": 6000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.6,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.3
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.0,
+        "forbidden_rate": 0.5,
+        "lose_rate": 0.5
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.0,
+        "forbidden_rate": 0.4,
+        "lose_rate": 0.6
+      }
+    },
+    {
+      "epoch": 7000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.6,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.3
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.1,
+        "forbidden_rate": 0.5,
+        "lose_rate": 0.4
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.0,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.7
+      }
+    },
+    {
+      "epoch": 8000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.7,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.2
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.4,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.5
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.3,
+        "forbidden_rate": 0.0,
+        "lose_rate": 0.7
+      }
+    },
+    {
+      "epoch": 9000,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.9,
+        "forbidden_rate": 0.0,
+        "lose_rate": 0.1
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.3,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.4
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.0,
+        "forbidden_rate": 0.6,
+        "lose_rate": 0.4
+      }
+    },
+    {
+      "epoch": 11600,
+      "depth_0": {
+        "n_games": 10,
+        "win_rate": 0.9,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.0
+      },
+      "depth_1": {
+        "n_games": 10,
+        "win_rate": 0.2,
+        "forbidden_rate": 0.3,
+        "lose_rate": 0.5
+      },
+      "depth_2": {
+        "n_games": 10,
+        "win_rate": 0.2,
+        "forbidden_rate": 0.1,
+        "lose_rate": 0.7
+      }
+    }
+  ]
+}

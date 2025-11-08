@@ -1,16 +1,21 @@
 import sys
 import os
+import importlib
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Get project root directory for font paths
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH_PIXEL = os.path.join(os.getcwd(),'graphics','fonts', 'pixel.TTF')
-from scripts.DQN import DQN
+from scripts.rl_algorithms.DDQN import DDQN
+from scripts.rl_algorithms.DuelingDDQN import DuelingDDQN
 from scripts.Train import Train
+from scripts.logger import Logger
+from graphics.my_dropdown_button import MyDropDownButton
 from graphics.navigation_screen_manager import NavigationScreenManager
 from global_vars import *
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.dropdown import DropDown
 from kivy.lang import Builder
 from kivy.app import App
 from kivy.uix.button import Button
@@ -44,15 +49,19 @@ class ThemedProgressBar(ProgressBar):
 class GetInfo: # Retrieve the informations from a model
      
      def __init__(self,game="Connect4"):
-          self.path = os.path.join("/models")
+          self.path = os.path.join(PROJECT_ROOT, "models")
+               
+     def get_model_dir(self,model_name):
+         return os.path.join(self.path,model_name)
      
      def get_model_path(self,model_name):
-         return os.path.join(os.getcwd()+self.path,model_name)
+         return os.path.join(self.path,model_name,model_name)
      
      def get_model_names(self): # returns a list of the name of the models we have
-          return os.listdir(os.getcwd()+self.path)
+          return os.listdir(self.path)
      
      def get_info_model(self,model_name): # returns the name, number of dense layers, number of neurons per dense layer
+        
         filepath=self.get_model_path(model_name)+"1.h5"
         model = keras.models.load_model(filepath=filepath)
         cfg = model.get_config()
@@ -65,7 +74,9 @@ class GetInfo: # Retrieve the informations from a model
                 if cfg['layers'][i]['config']['units']>1:
                     n_neurons_per_layer = cfg['layers'][i]['config']['units']
                     n_dense += 1
-        return model_name, n_dense, n_neurons_per_layer
+        logger = Logger(model_name,"1")
+        model_algo = logger.get_model_algo()
+        return model_name, n_dense, n_neurons_per_layer, model_algo
 
 
 class InfoLabel(Label): # The label with a border that appears multiple times in the interface
@@ -163,7 +174,9 @@ class ChooseAIModel(BoxLayout): # Menu to choose the model to play against
 
 
     def on_kv_post(self, base_widget):
+        global MODEL_NAME
         self.getInfo = GetInfo(self.game)
+        self.logger : Logger
         self.scroll_menu = ScrollingMenu()
         self.info_box = self.ids.info_box
         self.scroll_menu.press_refresh = self.press_refresh
@@ -172,9 +185,11 @@ class ChooseAIModel(BoxLayout): # Menu to choose the model to play against
         self.info_label = self.ids.info_label
         self.scroll_box = self.ids.Scroll_box
         self.text1 = "Name of the model"
-        self.text2 = "Nomber of layers"
-        self.text3 = "Number of neurons per layer"
-        self.info_label.text = f"{self.text1}: \n\n\n{self.text2}: \n\n\n{self.text3}:"
+        self.text2 = "Algorithm used"
+        self.text3 = "Number of games played"
+        self.text4 = "Nomber of layers"
+        self.text5 = "Number of neurons per layer"
+        self.info_label.text = f"{self.text1}: \n\n\n{self.text2}: \n\n\n{self.text3}: \n\n\n{self.text4}: \n\n\n{self.text5}:"
         self.init_buttons()
         self.setup_title()
 
@@ -207,7 +222,7 @@ class ChooseAIModel(BoxLayout): # Menu to choose the model to play against
         self.L_buttons = []
         already_added = []
         for i in range(len(self.model_list)):
-            model_name = self.model_list[i][:-4]
+            model_name = self.model_list[i]
             if model_name not in already_added:
                 btn = MyButton(text=str(model_name), size_hint_y=None, height=40, on_press = self.on_press, on_release = self.on_release)
                 self.L_buttons.append(btn)
@@ -257,8 +272,10 @@ class ChooseAIModel(BoxLayout): # Menu to choose the model to play against
 
     def get_info(self,instance):
         try:
-            model_name,  n_layers, n_neurons= self.getInfo.get_info_model(instance.text)
-            info = f"{self.text1}: {model_name}\n\n\n{self.text2}: {n_layers}\n\n\n{self.text3}: {n_neurons}"
+            model_name,  n_layers, n_neurons, model_algo= self.getInfo.get_info_model(instance.text)
+            self.logger = Logger(instance.text,"1")
+            n_games_played = self.logger.get_current_infos()[0]
+            info = f"{self.text1}: {model_name}\n\n\n{self.text2}: {model_algo}\n\n\n{self.text3}: {n_games_played}\n\n\n{self.text4}: {n_layers}\n\n\n{self.text5}: {n_neurons}"
         except:
              info = "Erreur de chargement des informations"
         self.info_label.text = info
@@ -284,19 +301,55 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
     on_release_validate=self.on_release_validate_new, 
 )
         self.update_texts_and_buttons()
+        
+        # Get available RL algorithms from the folder
+        self.available_algorithms = self.get_available_algorithms()
+        self.selected_algorithm = self.available_algorithms[0] if self.available_algorithms else "DDQN"
+        
+        # Add MyDropDownButton to the 4th row of the container
+        self.algorithm_button = MyDropDownButton(text=f"Algorithm: {self.selected_algorithm}", size_hint_y=0.5)
+        self.algorithm_dropdown = DropDown()
+        
+        # Populate dropdown with available algorithms
+        for algo in self.available_algorithms:
+            btn = MyDropDownButton(text=algo, size_hint_y=None, height=40)
+            btn.bind(on_release=lambda btn, a=algo: self.select_algorithm(a))
+            self.algorithm_dropdown.add_widget(btn)
+        
+        self.algorithm_button.bind(on_release=self.algorithm_dropdown.open)
+        self.info_input.container.add_widget(self.algorithm_button)
+    
+    def get_available_algorithms(self):
+        """Discover all RL algorithm classes from scripts/rl_algorithms folder"""
+        algorithms = []
+        rl_algorithms_path = os.path.join(PROJECT_ROOT, "scripts", "rl_algorithms")
+        
+        for filename in os.listdir(rl_algorithms_path):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                # Remove .py extension to get the module/class name
+                algo_name = filename[:-3]
+                algorithms.append(algo_name)
+        
+        return algorithms
+    
+    def select_algorithm(self, algorithm):
+        """Handle algorithm selection from dropdown"""
+        self.selected_algorithm = algorithm
+        self.algorithm_button.text = f"Algorithm: {algorithm}"
+        self.algorithm_dropdown.dismiss()
     
     def on_release_validate_new(self,instance):
         if instance.button_color == DARK_GREEN:
             instance.button_color = GREEN
             self.scroll_box.clear_widgets()
             self.scroll_box.add_widget(self.scroll_menu)            
-            self.model_name = self.info_input.children[1].children[2].children[0].children[1].text
+            self.model_name = self.info_input.children[1].children[3].children[0].children[1].text
             try:
-                n_layers = int(self.info_input.children[1].children[1].children[0].children[1].text)
+                n_layers = int(self.info_input.children[1].children[2].children[0].children[1].text)
             except:
                 n_layers = 0
             try:
-                n_neurons_per_layer = int(self.info_input.children[1].children[0].children[0].children[1].text)
+                n_neurons_per_layer = int(self.info_input.children[1].children[1].children[0].children[1].text)
             except:
                 n_neurons_per_layer = 0
             n_neurons_tot = n_layers*n_neurons_per_layer
@@ -323,9 +376,9 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
             else:
                 t1 = threading.Thread(target=self.create_model, args=(n_layers, n_neurons_per_layer))
                 t1.start()
+            self.info_input.children[1].children[3].children[0].children[1].text = ""
             self.info_input.children[1].children[2].children[0].children[1].text = ""
             self.info_input.children[1].children[1].children[0].children[1].text = ""
-            self.info_input.children[1].children[0].children[0].children[1].text = ""
 
     def create_model(self,n_layers, n_neurons_per_layer):
         
@@ -341,10 +394,18 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
         if self.log_label.text == "":
             self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
             try:
-                DQN(reset=False,model_name=self.model_name,n_neurons=n_neurons_per_layer,n_layers=n_layers,softmax_=False,P1="1")
-                DQN(reset=False,model_name=self.model_name,n_neurons=n_neurons_per_layer,n_layers=n_layers,softmax_=False,P1="2")
-                self.log_label.text = f"\n[color=3EB64B][INFO] The model {self.model_name} was created successfully.[/color]"
-            except:
+                # Dynamically import the selected algorithm
+                module = importlib.import_module(f"scripts.rl_algorithms.{self.selected_algorithm}")
+                AlgorithmClass = getattr(module, self.selected_algorithm)
+                
+                # Create two instances (for P1="1" and P1="2")
+                dqn1 = AlgorithmClass(reset=False, model_name=self.model_name, n_neurons=n_neurons_per_layer, n_layers=n_layers, softmax_=False, P1="1")
+                dqn2 = AlgorithmClass(reset=False, model_name=self.model_name, n_neurons=n_neurons_per_layer, n_layers=n_layers, softmax_=False, P1="2")
+                dqn1.logger.set_algo_name(dqn1.get_algo_name())
+                dqn2.logger.set_algo_name(dqn2.get_algo_name())
+                
+                self.log_label.text = f"\n[color=3EB64B][INFO] The model {self.model_name} with {self.selected_algorithm} was created successfully.[/color]"
+            except Exception as e:
                 self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
                 self.log_label.text = "\n[ERROR] The model could not be created.\nUnknown error!"
             self.load_button_list()
@@ -352,9 +413,9 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
     def on_release_cancel_new(self):
         self.scroll_box.clear_widgets()
         self.scroll_box.add_widget(self.scroll_menu)
+        self.info_input.children[1].children[3].children[0].children[1].text = ""
         self.info_input.children[1].children[2].children[0].children[1].text = ""
         self.info_input.children[1].children[1].children[0].children[1].text = ""
-        self.info_input.children[1].children[0].children[0].children[1].text = ""
         
     
     def update_texts_and_buttons(self):
@@ -434,19 +495,19 @@ class EditModels(ChooseAIModel): # Menu to edit (create and delete) models
     def delete_on_press(self,instance):
         if instance.button_color==RED:
             instance.button_color=DARK_RED
-            path = self.getInfo.get_model_path(self.model_name)
+            path = self.getInfo.get_model_dir(self.model_name)
             cond = self.model_name == "Expert" or self.model_name == "Intermediaire" or self.model_name == "Debutant"
             if cond:
                 self.log_error(2)
             else:
                 try:
-                    os.remove(path+"1.h5")
+                    shutil.rmtree(path)
                     self.bottom_box.padding = [0,0.05*self.bottom_box.height,0,0.05*self.bottom_box.height]
                     self.log_label.text = f"\n[color=3EB64B][INFO] The model {self.model_name} was deleted successfully.[/color]"
                 except:
                     self.log_error(1)
                 try:
-                    os.remove(path + "2.h5")
+                    shutil.rmtree(path)
                 except:
                     pass
                 self.load_button_list()
@@ -527,6 +588,7 @@ class MenuInput(BoxLayout):
         self.text1 = "Model name"
         self.text2 = "Number of layers"
         self.text3 = "Number of neurons per layer"
+        self.container = self.ids.container
         self.info_label.text = f"{self.text1}: \n\n\n{self.text2}: \n\n\n{self.text3}:"
     
     def log_info(self,i):
@@ -544,29 +606,29 @@ class MenuInput(BoxLayout):
         print("Cancel pressed")
 
     def set_on_press0(self):
-        if self.children[1].children[2].children[0].children[1].text == "":
+        if self.children[1].children[3].children[0].children[1].text == "":
             self.log_info(0)
             self.button_set_color0 = LIGHT_RED
         else:
             self.button_set_color0 = DARK_GREEN
-            self.info_label.text = f"{self.text1}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[1].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[0].children[0].children[1].text}"
+            self.info_label.text = f"{self.text1}: {self.children[1].children[3].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[1].children[0].children[1].text}"
 
     def set_on_press1(self):
-        if self.children[1].children[1].children[0].children[1].text == "" or float(self.children[1].children[1].children[0].children[1].text) < 1 or float(self.children[1].children[1].children[0].children[1].text) > 10:
+        if self.children[1].children[2].children[0].children[1].text == "" or float(self.children[1].children[2].children[0].children[1].text) < 1 or float(self.children[1].children[2].children[0].children[1].text) > 10:
             self.log_info(1)
             self.button_set_color1 = LIGHT_RED
         else:
             self.button_set_color1 = DARK_GREEN
-            self.info_label.text = f"{self.text1}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[1].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[0].children[0].children[1].text} "
+            self.info_label.text = f"{self.text1}: {self.children[1].children[3].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[1].children[0].children[1].text} "
 
 
     def set_on_press2(self):
-        if self.children[1].children[0].children[0].children[1].text == "" or float(self.children[1].children[0].children[0].children[1].text) < 1 or float(self.children[1].children[0].children[0].children[1].text) > 512:
+        if self.children[1].children[1].children[0].children[1].text == "" or float(self.children[1].children[1].children[0].children[1].text) < 1 or float(self.children[1].children[1].children[0].children[1].text) > 512:
             self.log_info(2)
             self.button_set_color2 = LIGHT_RED
         else:
             self.button_set_color2 = DARK_GREEN
-            self.info_label.text = f"{self.text1}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[1].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[0].children[0].children[1].text} "
+            self.info_label.text = f"{self.text1}: {self.children[1].children[3].children[0].children[1].text} \n\n\n{self.text2}: {self.children[1].children[2].children[0].children[1].text} \n\n\n{self.text3}: {self.children[1].children[1].children[0].children[1].text} "
     
     def set_on_release0(self):
         if self.button_set_color0 == LIGHT_RED:

@@ -23,23 +23,26 @@ class Env(Connect4):
                self.grid = next_grid.copy()
                #reward = super().score(table)/10
                if super().win(next_grid,player):
-                    reward = 1
+                    reward = 10
                     terminated = True
                elif super().lose(next_grid,player):
-                    reward = 0
+                    reward = -10
                     terminated = True
                elif super().tie(next_grid):
-                    reward = 1/7
+                    reward = 0
                     terminated = True
-          else: # if the action is invalid: taking an invalid action is similar to a lose from the DQN POV
+          else: # if the action is invalid: taking an invalid action is worst than losing from the DQN POV
                terminated = True 
-               reward = 0
+               reward = -15
                next_grid = self.grid.copy()
           return next_grid, reward, terminated
     
     def reset(self):
          self.grid = np.array([0 for i in range(42)])
          return np.array([0 for i in range(42)])
+    
+    def render(self):
+         print(self.grid_to_table(self.grid))
     
 if __name__=="__main__":
 

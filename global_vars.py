@@ -28,7 +28,7 @@ class var:
         self.MODE = ""
         self.LEVEL = ""
         self.GAME = ""
-        self.model_name = ""
+        self.model_name = "beginner"
 
     def __str__(self):
         return f"Mode: {self.MODE}, Level: {self.LEVEL}, Game: {self.GAME}, AI Model: {self.model_name}"

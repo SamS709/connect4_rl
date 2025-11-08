@@ -1,6 +1,7 @@
 
 #:import navigation_screen_manager graphics.navigation_screen_manager
 #:import Game graphics.connect4InterfaceNoRobot.Game
+#import MyDropDownButton graphics.my_dropdown_button.MyDropDownButton
 
 #:set LIGHT_GREEN  [169 / 256, 221 / 256, 175 / 256, 1]
 #:set GREEN  [62 / 256, 182 / 256, 75 / 256, 1]
@@ -258,9 +259,10 @@
         InfoLabel:
             text : root.titre
     GridLayout:
+        id: container
         spacing: 0.01*self.height
         cols: 1
-        rows: 3
+        rows: 4
         InfoInput:
             filter : root.filter1
             button_set_color : root.button_set_color0
@@ -282,6 +284,7 @@
             release : root.set_on_release2
             text_input : root.text_input2
             text : root.text3
+        
     BoxLayout:
         spacing : 0.03*self.width
         padding: 0,.1*self.height,0,0
