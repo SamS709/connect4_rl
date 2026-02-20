@@ -17,6 +17,7 @@ from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
 from kivy.uix.screenmanager import Screen
+import torch
 
 import random as rd
 from kivy.lang import Builder
@@ -87,7 +88,7 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
 
     def reset(self):
         self.model_name = var1.model_name
-        self.grid = self.env.reset()
+        self.table = self.env.reset()
         self.terminated = False
         self.clear_widgets() # remove all widgets from the window
         self.P1 = '2' # by default, the AI plays after
@@ -159,20 +160,19 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
 
 
     def det_action(self): # during a game vs a human, it is expected from the ai not to make forbidden moves.
-        state = self.grid
-        sorted_actions = self.dqn.get_sorted_actions(state)
-        L_free_pos = np.array(super().free_pos_table(self.grid))
+        state = self.table
+        sorted_actions = self.dqn.get_sorted_actions(state).tolist()
+        L_free_pos = super().free_pos_table(self.table)
         print(sorted_actions)
         for action in sorted_actions: # we take the first valid action sorted by their probability of being taken by the ai
-            if action in L_free_pos[:,1:]: 
+            if action in np.array(L_free_pos)[:,1:]: 
                 return action
     
     def play(self):
         self.player_one_button.button_color = LIGHT_RED
         action = self.det_action()
         next_state, reward, self.terminated = self.env.step(action,self.r)
-        self.grid = next_state.copy()
-        self.table = self.grid_to_table(self.grid)
+        self.table = next_state.clone()
         for i in range(self.table.shape[0]):
             for j in range(self.table.shape[1]):
                 self.remove_widget(self.LwCR[i][j])
@@ -185,10 +185,9 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
                     self.add_widget(self.LwCJ[i][j])
         if not self.terminated:
             self.player = 'J'
-            time.sleep(60)
 
     def press(self,instance):
-        PP = self.free_pos_table(self.grid)
+        PP = self.free_pos_table(self.table)
         if self.player == 'J' and not self.terminated:
             for i in range(6):
                 for j in range(7):
@@ -198,15 +197,13 @@ class Connect4GameNoRobot(Screen,FloatLayout,Connect4): # Main class for Connect
     
 
     def release(self,instance):
-        PP = self.free_pos_table(self.grid)
-        self.table = self.grid_to_table(self.grid)
+        PP = self.free_pos_table(self.table)
         if self.player == 'J' :
             for i in range(6):
                 for j in range(7):
                     if instance.text == str(j) and [i,j] in PP:
                         next_state, reward, self.terminated = self.env.step(j,self.j)
-                        self.grid = next_state.copy()
-                        self.table = self.grid_to_table(self.grid)
+                        self.table = next_state.clone()
                         self.add_widget(self.wpionJ)
                         self.player = 'R'
                         if not self.terminated:

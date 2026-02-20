@@ -1,51 +1,48 @@
-import numpy as np
+import torch
 from scripts.Connect4 import Connect4
 
 class Env(Connect4):
     
     def __init__(self):
         super().__init__()
-        self.grid = np.array([0 for i in range(42)])
-        self.state = self.grid
+        self.reset()
+        self.state = self.table
         self.action_space = [6,7]
 
     def step(self,action,player):
-          L_free_pos = np.array(super().free_pos_table(self.grid))
+          L_free_pos = torch.tensor(super().free_pos_table(self.table))
           if action in L_free_pos[:,1:]: # if the action is valid (not out of the board)
                for pos in L_free_pos:
                     if pos[1]==action:
                          p,q = pos
                terminated = False
                reward = 0
-               table = super().grid_to_table(self.grid)
-               table[p,q] = player
-               next_grid = super().table_to_grid(table)
-               self.grid = next_grid.copy()
+               self.table[p,q] = player
                #reward = super().score(table)/10
-               if super().win(next_grid,player):
+               if super().win(self.table,player):
                     reward = 10
                     terminated = True
-               elif super().lose(next_grid,player):
+               elif super().lose(self.table,player):
                     reward = -10
                     terminated = True
-               elif super().tie(next_grid):
+               elif super().tie(self.table):
                     reward = 0
                     terminated = True
           else: # if the action is invalid: taking an invalid action is worst than losing from the DQN POV
                terminated = True 
                reward = -15
-               next_grid = self.grid.copy()
-          return next_grid, reward, terminated
+          self.state = self.table
+          return self.table, reward, terminated
     
     def reset(self):
-         self.grid = np.array([0 for i in range(42)])
-         return np.array([0 for i in range(42)])
+         self.table = torch.tensor([[0 for j in range(7)] for i in range(6)])
+         return torch.tensor([[0 for j in range(7)] for i in range(6)])
     
     def render(self):
-         print(self.grid_to_table(self.grid))
+         print(self.state)
     
 if __name__=="__main__":
 
-     L_free_pos = np.array([[0,1],[2,3]])
+     L_free_pos = torch.tensor([[0,1],[2,3]])
      print(L_free_pos[:,1:])
      print(1 in L_free_pos[:,1:])

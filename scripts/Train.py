@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
 # Simple one-line logging setup
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
 import importlib
-
+import torch
 from kivy.clock import mainthread
 from scripts.rl_algorithms.DDQN import DDQN
 import numpy as np
@@ -30,7 +30,7 @@ N_LEARNING = 0
 
 class Train(Connect4):
 
-    def __init__(self,model_name,info_label = None,scrollable_lablel = None,box = None,pb = None,reset=False,learning_rate=0.5e-3,discount_factor=0.99,softmax_=False,eps = 0.5):
+    def __init__(self,model_name,info_label = None,scrollable_lablel = None,box = None,pb = None,reset=False,learning_rate=5e-3, discount_factor=0.98,softmax_=False,eps = 0.5):
         super().__init__()
         self.load_models(reset, eps, learning_rate, discount_factor,model_name, softmax_)
         self.log_algo_name()    
@@ -89,6 +89,7 @@ class Train(Connect4):
 
             a1 = self.agentP1.select_action(A,eps)
             B, r1, t1 = self.env.step(a1,1)
+            
                         
             if t1: # if t1 made a move that led to a termination
                 t2 = True 
@@ -97,7 +98,7 @@ class Train(Connect4):
                     r2 = -10
                     
             if not first_shot: # replay_beuffer2 starts to append after the first loop
-                self.agentP2.replay_buffer.append((D,a2,r2,B,(1-t1)))
+                self.agentP2.replay_buffer.append((D,a2,r2,B,(1-t2)))
 
             if not t1: 
                 a2 = self.agentP2.select_action(B,eps)
@@ -110,6 +111,8 @@ class Train(Connect4):
                     r1 = -10
             self.agentP1.replay_buffer.append((A,a1,r1,C,(1-t1)*(1-t2)))                
             first_shot = False
+            # print(B,r1, t1)
+            # print(C, r2, t2)
 
             A = C
             D = B
@@ -124,23 +127,34 @@ class Train(Connect4):
         game_lengths_mean = []
         n_points = 50
         n_evals = 10
-        registration_rate = n/n_points # such that we get n_points points for the final game_length plot
-        evals_rate = n/n_evals
+        registration_rate = 100 # such that we get n_points points for the final game_length plot
+        n_backprop = 10
+        evals_rate = 1000
+        lossp1, lossp2 = 0.0, 0.0
         for episode in range(n):
             self.modif_label(episode,N=1) if self.kivy else None
             eps = epsilon(episode,n,2,eps_0=0.3)
             game_length = self.play_one_game(eps)
             game_lengths.append(game_length)
-            print(f"\r[INFO] Episode: {starting_epoch + episode + 1} / {n + starting_epoch}, Game length: {game_length + 1}, eps: {eps:.3f}",end="")
+            if episode%100 == 0 and episode > 1:
+                print(f"\r[INFO] Episode: {starting_epoch + episode + 1} / {n + starting_epoch}, Game length: {game_length + 1}, eps: {eps:.3f}, lossp1: {lossp1}", end="")
+                self.logger1.write_loss(lossp1, episode)
+                self.logger2.write_loss(lossp2, episode)
             if episode >= 10 :
-                self.agentP1.training_step()
-                self.agentP2.training_step()
+                lossp1, lossp2 = 0.0, 0.0
+                for i in range(n_backprop):
+                    lossp1 += self.agentP1.training_step()
+                    lossp2 += self.agentP2.training_step()
+                lossp1 /= n_backprop
+                lossp2 /= n_backprop
                 if episode % registration_rate == 0:
+                    print("[INFO] Model registered")
                     self.agentP1.save()
                     self.agentP2.save()
                     game_lengths_mean.append(np.mean(game_lengths[int(episode-registration_rate):]))
                     self.logger1.overwrite_epochs(starting_epoch + episode)
                     self.logger2.overwrite_epochs(starting_epoch + episode)
+                    
                 if episode % evals_rate == 0:
                     self.add_evals_infos(10, 3)
                     
@@ -148,58 +162,65 @@ class Train(Connect4):
         return game_lengths_mean
     
     def play_one_game_evaluation(self,j,depth):
-        terminated = False
-        state = self.env.reset()
-        game_length = 0
-        win = 0
-        tie = 0 
-        forbiden_move = 0
-        if j == 1 :
-            minimax = MinMax(player=2)
-            while not terminated:
-                game_length += 1
-                action = self.agentP1.select_action(state,eps = 0) # best pos according to the DQN
-                state, reward_ai, terminated = self.env.step(action,1)
-                
-                if terminated:
-                    if reward_ai == -15:
-                        forbiden_move = 1
-                    elif reward_ai == 10:
-                        win = 1
-                    else:
-                        tie = 1
-                    break
-                
-                game_length += 1
-                state = self.grid_to_table(state)
-                action = minimax.best_pos(state, depth)
-                state = self.table_to_grid(state)                
-                state, reward_minimax, terminated = self.env.step(action,2)
-        else:
-            minimax = MinMax(player=1)
-            while not terminated:
-                game_length += 1
-                action = self.agentP2.select_action(state,eps = 0) # best pos according to the DQN
-                state, reward_ai, terminated = self.env.step(action,2)
-
-                if terminated:
-                    if reward_ai == -15:
-                        forbiden_move = 1
-                    elif reward_ai == 10:
-                        win = 1
-                    else:
-                        tie = 1
-                    break
-
-                game_length += 1
-                state = self.grid_to_table(state)
-                action = minimax.best_pos(state, depth)
-                state = self.table_to_grid(state)
-                state, reward_minimax, terminated = self.env.step(action,1)
+        self.agentP1.model.eval()
+        self.agentP2.model.eval()
+        with torch.no_grad():
+            terminated = False
+            state = self.env.reset()
+            game_length = 0
+            win = 0
+            tie = 0 
+            forbiden_move = 0
+            if j == 1 :
+                minimax = MinMax(player=2)
+                while not terminated:
+                    # print(state)                    
+                    game_length += 1
+                    action = self.agentP1.select_action(state,eps = 0)
+                    state, reward_ai, terminated = self.env.step(action,1)
+                    
+                    if terminated:
+                        if reward_ai == -15:
+                            forbiden_move = 1
+                        elif reward_ai == 10:
+                            win = 1
+                        else:  # reward_ai == 0, it's a tie
+                            tie = 1
+                        break
+                    
+                    game_length += 1
+                    action = minimax.best_pos(state, depth)
+                    state, reward_minimax, terminated = self.env.step(action,2)
+                    if terminated:  # Minimax ended the game
+                        if reward_minimax == 0:  # Tie
+                            tie = 1
+                        # else: reward_minimax == 10, minimax won (agent lost)
+            else:
+                minimax = MinMax(player=1)
+                while not terminated:
+                    # print(state)
+                    game_length += 1
+                    action = minimax.best_pos(state, depth)
+                    state, reward_minimax, terminated = self.env.step(action,1)
+                    
+                    if terminated:  # Minimax ended the game
+                        if reward_minimax == 0:  # Tie
+                            tie = 1
+                        # else: reward_minimax == 10, minimax won (agent lost)
+                        break
+                    
+                    game_length += 1
+                    action = self.agentP2.select_action(state,eps = 0)
+                    state, reward_ai, terminated = self.env.step(action,2)
+                    if terminated:
+                        if reward_ai == -15:
+                            forbiden_move = 1
+                        elif reward_ai == 10:
+                            win = 1
+                        else:  # reward_ai == 0, it's a tie
+                            tie = 1
+                    
         return game_length, win, tie, forbiden_move
-
-
-
 
 
     
@@ -346,12 +367,12 @@ if __name__=="__main__":
     
 
     train = True
-    plot = True
-    trainer = Train(model_name= "expert")
+    plot = False
+    trainer = Train(model_name= "torch_ddqn")
 
     if train :
         import matplotlib.pyplot as plt
-        n = 30000
+        n = 100000
         trainer.train_n_games(n)
         # plt.plot(game_lengths)
         # plt.savefig('plots/training_plot.png', dpi=300, bbox_inches='tight')

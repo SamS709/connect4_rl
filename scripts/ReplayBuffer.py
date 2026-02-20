@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from collections import deque
 
 
@@ -69,11 +70,11 @@ class PrioritizedReplayBuffer:
         
         # Return in the format: [states, actions, rewards, next_states, dones]
         experiences = [
-            np.array([experience[field_index] for experience in batch])
+            torch.stack([torch.as_tensor(experience[field_index]) for experience in batch])
             for field_index in range(5)
         ]
         
-        return experiences, indices, weights
+        return experiences, indices, torch.from_numpy(weights).float()
     
     def update_priorities(self, indices, td_errors):
         """
@@ -102,7 +103,7 @@ class ReplayBuffer:
     
     def get_exp(self):
         return [
-            np.array([experience[field_index] for experience in self.buffer])
+            torch.tensor([experience[field_index] for experience in self.buffer])
             for field_index in range(5)
         ]
     
@@ -121,13 +122,13 @@ class ReplayBuffer:
         Sample batch of experiences uniformly
         
         Returns:
-            List of numpy arrays: [states, actions, rewards, next_states, dones]
+            List of torch tensors: [states, actions, rewards, next_states, dones]
         """
         indices = np.random.randint(len(self.buffer), size=batch_size)
         batch = [self.buffer[index] for index in indices]
         
         return [
-            np.array([experience[field_index] for experience in batch])
+            torch.stack([torch.as_tensor(experience[field_index]) for experience in batch])
             for field_index in range(5)
         ]
 

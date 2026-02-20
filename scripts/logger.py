@@ -21,11 +21,16 @@ class Logger:
             with open(history_file, "r") as f:
                 history = json.load(f)
         except FileNotFoundError:
-            history = {"total_epochs": 0, "algorithm": "", "evaluations": []}
+            history = {"total_epochs": 0,"losses": {"loss": [], "epoch": []} , "algorithm": "", "evaluations": []}
         return history
     
     def overwrite_epochs(self, epochs):
         self.file["total_epochs"] = epochs
+        self.save()
+        
+    def write_loss(self,loss, epoch):
+        self.file["losses"]["epoch"].append(epoch)
+        self.file["losses"]["loss"].append(loss)
         self.save()
         
     def set_algo_name(self, name):

@@ -1,6 +1,6 @@
 {
   "total_epochs": 11600,
-  "algorithm": "DuelingDDQN",
+  "algorithm": "DDQN",
   "evaluations": [
     {
       "epoch": 1000,

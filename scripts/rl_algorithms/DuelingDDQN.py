@@ -10,9 +10,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0=all, 1=INFO, 2=WARNING, 3=ERROR
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 import random
-import keras
-from keras import ops
-import tensorflow as tf
+import torch
+import torch.nn as nn 
+import torch.nn.functional as F
 import numpy as np
 from collections import deque
 from scripts.env import Env
@@ -21,21 +21,35 @@ from scripts.logger import Logger
 from scripts.ReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
 
 # Custom layer for Dueling DQN aggregation
-@keras.saving.register_keras_serializable()
-class DuelingAggregation(keras.layers.Layer):
-    """Aggregates value and advantage streams for Dueling DQN"""
-    
-    def call(self, inputs):
-        v_s, adv = inputs
-        # Q(s,a) = V(s) + (A(s,a) - mean(A(s,a)))
-        mean_adv = ops.mean(adv, axis=1, keepdims=True)
-        return v_s + (adv - mean_adv)
-    
-    def get_config(self):
-        return super().get_config()
 
-#model = dnn1
-#target = dnn2
+
+class DuelingDDQNModel(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 6 * 7 = 42 length and 3 channels (0, 1, 2) -> empty, p1, p2
+        num_actions = 7
+        self.layers = nn.Sequential(
+            nn.Flatten(start_dim=2),
+            nn.Conv1d(in_channels=3, out_channels=32, kernel_size=3, stride = 1, padding = 1), # output_length = 42
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=32, out_channels= 64, kernel_size=3, stride = 1, padding = 1), # output_length = 42
+            nn.BatchNorm1d(64),
+            nn.ReLU()
+        )
+        self.dense = nn.Sequential(
+            nn.Dropout(0.2),
+            nn.Linear(64 * 42, 256),
+            nn.ReLU(),
+        )
+        self.a = nn.Linear(256, num_actions)
+        self.v_s = nn.Linear(256,1)
+    
+    def forward(self, X):
+        X = F.one_hot(X, num_classes=3).float().permute([0, 3, 1, 2])
+        X = self.layers(X)
+        X = self.dense(X.flatten(1))
+        return self.v_s(X) + self.a(X)
 
 class DuelingDDQN(Connect4):
 
@@ -63,86 +77,77 @@ class DuelingDDQN(Connect4):
         self.gamma = gamma
         self.P1 = P1
         self.batch_size = 32
-        self.loss_fn = keras.losses.mean_squared_error
-        self.optimizer = keras.optimizers.Nadam(learning_rate=learning_rate)
+        self.loss_fn = nn.MSELoss(reduction='none')  # Per-sample loss for prioritized replay
+        
         self.model_name = model_name
-        self.dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "models", self.model_name, self.model_name+self.P1+".h5")
+        self.path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "models", self.model_name)
+        self.model_path = os.path.join(self.path, self.model_name+self.P1+".pt")
 
-        try:            
+        try:
+            print("SUCCESSFULLY LOADED MODEL ", self.model_name)
+            
             self.load_model()
         except:
+            print("SUCCESSFULLY CREATED MODEL ", self.model_name)
             self.create_model()
-        print(self.__str__())
+            self.save()
+        self.__str__()
         self.logger = Logger(model_name,P1)
+        self.logger.set_algo_name(self.get_algo_name())
+        self.optimizer = torch.optim.Adam(params = self.model.parameters(),lr = 0.001)
         
 
     def __str__(self):
-        return self.model.summary()
+        print(self.model)
+        return str(self.model)
     
     def get_algo_name(self):
-        return "DuelingDDQN"
-    
+        return "DDQN"
+
     def save(self):
-        self.target.set_weights(self.model.get_weights())
-        self.model.save(self.dir_path,overwrite=True)
+        self.target.load_state_dict(self.model.state_dict())
+        torch.save(self.model, self.model_path)
+        
 
     def create_model(self):
-        input_ = keras.layers.Input(shape=(42,))
-        one_hot = keras.layers.Lambda(lambda x : __import__("tensorflow").one_hot(__import__("tensorflow").cast(x, 'int64'), 3),output_shape=(42,3))(input_)
-        flatten = keras.layers.Flatten(input_shape=(42, 3))(one_hot)
-        hidden1 = keras.layers.Dense(self.n_neurons,kernel_initializer="he_normal", use_bias=False)(flatten)
-        BN1 = keras.layers.BatchNormalization()(hidden1)
-        relu1 = keras.layers.Activation("relu")(BN1)
-        dropout =keras.layers.Dropout(rate=0.2)(relu1)
-        for i in range(self.n_layers-2):
-            hidden = keras.layers.Dense(self.n_neurons,kernel_initializer="he_normal", use_bias=False)(dropout)
-            BN = keras.layers.BatchNormalization()(hidden)
-            relu = keras.layers.Activation("relu")(BN)
-            dropout =keras.layers.Dropout(rate=0.2)(relu)
-        hidden2 = keras.layers.Dense(self.n_neurons,kernel_initializer="he_normal", use_bias=False)(dropout)
-        BN2 = keras.layers.BatchNormalization()(hidden2)
-        relu2 = keras.layers.Activation("relu")(BN2)
-        v_s = keras.layers.Dense(1, activation="linear")(relu2)
-        adv = keras.layers.Dense(7, activation="linear")(relu2)
-        
-        # Use custom DuelingAggregation layer for proper serialization
-        output_ = DuelingAggregation()([v_s, adv])
-        
-        self.model = keras.models.Model(inputs=[input_], outputs=[output_])
-        self.model.save(self.dir_path,overwrite=True)
+        self.model = DDQNModel()
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        torch.save(self.model, self.model_path)
         self.load_model()
-
+        
     def load_model(self):
-        self.model = keras.models.load_model(self.dir_path)
-        self.target = keras.models.load_model(self.dir_path)
-        self.target.set_weights(self.model.get_weights())
+        self.model = torch.load(self.model_path, weights_only= False)
+        self.target = torch.load(self.model_path, weights_only= False)
+        self.target.load_state_dict(self.model.state_dict())
 
-    def epsilon_greedy(self, state, eps = None):
+
+    def epsilon_greedy(self, state: torch.tensor, eps = None):
         epsilon = self.epsilon if eps==None else eps
         if np.random.rand()<epsilon: 
             return np.random.randint(0,7)
         else:
-            Q_values = self.model.predict(state[np.newaxis],verbose=0)[0] 
+            Q_values = self.model(state.unsqueeze(0))[0]
             #np.newaxis augment la dimension de state
             #verbose = 0 => don't show the progress bar of evaluating
-            return np.argmax(Q_values)
+            return torch.argmax(Q_values)
     
-    def select_action(self, state, eps = None):
+    def select_action(self, state: torch.tensor, eps = None):
         return self.epsilon_greedy(state,eps)
     
-    def get_sorted_actions(self, state):
+    def get_sorted_actions(self, state: torch.tensor):
         """Returns actions (indices) sorted by Q-values in descending order"""
-        Q_values = self.model.predict(state[np.newaxis],verbose=0)[0]
+        Q_values = self.model(state.unsqueeze(0))[0]
         # argsort gives indices in ascending order, so we reverse with [::-1]
-        return np.argsort(Q_values)[::-1]
+        return torch.argsort(Q_values, descending=True)
     
-    def get_action_probabilities(self, state):
+    def get_action_probabilities(self, state: torch.tensor):
         """Returns Q-values (probabilities) and corresponding sorted actions"""
-        Q_values = self.model.predict(state[np.newaxis],verbose=0)[0]
-        sorted_actions = np.argsort(Q_values)[::-1]
+        Q_values = self.model(state.unsqueeze(0))[0]
+        sorted_actions = torch.argsort(Q_values, descending=True)
         sorted_probabilities = Q_values[sorted_actions]
         return sorted_actions, sorted_probabilities
-        
+
     
     def sample_experiences(self):
         if self.use_prioritized:
@@ -156,56 +161,42 @@ class DuelingDDQN(Connect4):
     
     def training_step(self):
         
+        self.model.train()
         experiences, indices, weights = self.sample_experiences()
         states, actions, rewards, next_states, runs = experiences
         
         # Compute Q-values and targets
-        next_actions = np.argmax(self.model.predict(next_states, verbose=0), axis=1)
-        next_Q_values = self.target.predict(next_states, verbose=0)  # using target network
-        max_next_Q_values = next_Q_values[np.arange(self.batch_size), next_actions]
+        actual_batch_size = states.shape[0]
+        next_actions = torch.argmax(self.model(next_states), axis=1)
+        next_Q_values = self.target(next_states)  # using target network
+        max_next_Q_values = next_Q_values[torch.arange(actual_batch_size), next_actions]
         target_Q_values = rewards + runs * self.gamma * max_next_Q_values
-        target_Q_values = target_Q_values.reshape(-1, 1)
+        target_Q_values = target_Q_values.reshape(-1,1)
+        mask = F.one_hot(actions, 7)
+
+        all_Q_values = self.model(states)
+        Q_values = torch.sum(all_Q_values * mask, axis=1, keepdims=True)
+        td_errors = target_Q_values - Q_values
         
-        states_tensor = tf.constant(states, dtype=tf.float32)
-        target_Q_values_tensor = tf.constant(target_Q_values, dtype=tf.float32)
-        
-        mask = tf.one_hot(actions, 7)
-        
-        with tf.GradientTape() as tape:
-            all_Q_values = self.model(states_tensor)
-            Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
-            
-            # Compute TD errors for priority updates
-            td_errors = target_Q_values_tensor - Q_values
-            
-            # Apply importance sampling weights if using prioritized replay
-            if self.use_prioritized:
-                weights_tf = tf.constant(weights.reshape(-1, 1), dtype=tf.float32)
-                weighted_loss = weights_tf * self.loss_fn(target_Q_values_tensor, Q_values)
-                loss = tf.reduce_mean(weighted_loss)
-            else:
-                loss = tf.reduce_mean(self.loss_fn(target_Q_values_tensor, Q_values))
-        
-        # Update network
-        grads = tape.gradient(loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        if self.use_prioritized:
+            # Compute per-sample losses and weight them
+            sample_losses = self.loss_fn(Q_values, target_Q_values).squeeze()
+            weighted_loss = torch.mean(weights.to(Q_values.device) * sample_losses)
+            weighted_loss.backward()
+        else:
+            loss = torch.mean(self.loss_fn(Q_values, target_Q_values))
+            loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
         
         # Update priorities in replay buffer
         if self.use_prioritized:
-            td_errors_np = np.abs(td_errors.numpy().flatten())
+            td_errors_np = torch.abs(td_errors.detach().flatten())
             self.replay_buffer.update_priorities(indices, td_errors_np)
 
 
 if __name__=="__main__":
-    dqn = DuelingDDQN("helloooooo",eps=0.5)
-    state = np.array([0 for i in range(42)])
-    obs = dqn.env.reset()
-    dqn.select_action(state,0.3)
+    dqn = DuelingDDQN("torch_ddqn",eps=0.5)
+    state = torch.tensor([0 for i in range(42)])
+    dqn.select_action(state.unsqueeze(0),0.3)
 
-
-
-    """  actions = dqn.model.predict(state[np.newaxis],verbose=0)[0] 
-
-    print(actions)
-    print(np.sum(actions))
-    print(np.argmax(actions))"""
